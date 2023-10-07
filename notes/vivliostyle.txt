@@ -1,4 +1,0 @@
-git clone https://github.com/vivliostyle/vivliostyle-print.git
-cd vivliostyle-print/
-npm install
-npm install webpack webpack-cli
