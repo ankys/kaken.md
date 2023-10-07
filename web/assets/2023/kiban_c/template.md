@@ -1,0 +1,26 @@
+
+<style>
+@page { size: A4; margin-left: 25mm; margin-right: 25mm; margin-top: 20mm; margin-bottom: 20mm; }
+@page :nth(1) { background-image: url({{ url(s-14-1.svg) }}); margin-top: 140mm; }
+@page :nth(2) { background-image: url({{ url(s-14-2.svg) }}); margin-top: 25mm; }
+@page :nth(3) { background-image: url({{ url(s-14-3.svg) }}); margin-top: 25mm; }
+@page :nth(4) { background-image: url({{ url(s-14-4.svg) }}); margin-top: 25mm; }
+@page :nth(5) { background-image: url({{ url(s-14-5.svg) }}); margin-top: 50mm; }
+@page :nth(6) { background-image: url({{ url(s-14-6.svg) }}); margin-top: 25mm; }
+@page :nth(7) { background-image: url({{ url(s-14-7.svg) }}); margin-top: 60mm; }
+@page :nth(8) { background-image: url({{ url(s-14-8.svg) }}); margin-top: 60mm; }
+div { font-size: 11pt;}
+/* @page { size: A4; margin: 0; }
+@page :nth(1)::before { content: url({{ url(s-14-1.svg) }}); width: 100%; height: 100%; }
+@page :nth(2)::before { content: url({{ url(s-14-2.svg) }}); width: 100%; height: 100%; } */
+</style>
+
+<style>
+#１研究目的、研究方法など #\(概要\) { position: absolute; top: calc(67mm - 140mm); height: 60mm; overflow: hidden; }
+#１研究目的、研究方法など #\(本文\) { }
+#２応募者の研究遂行能力及び研究環境 { break-before: page; }
+#３人権の保護及び法令等の遵守への対応 { break-before: page; }
+#４研究計画最終年度前年度応募を行う場合の記述事項 { break-before: page; }
+</style>
+
+{{ get() }}

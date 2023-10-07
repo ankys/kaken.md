@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width" />
+<title>科研費Markdown</title>
+<script src="@vivliostyle/vfm/main.js"></script>
+<script src="@vivliostyle/print/main.js"></script>
+</head>
+<body style="position:absolute; width: 100%; height: 100%">
+<div>
+<label>
+プリセット
+<select id="preset" onchange="onchangePreset();">
+<option value="">選択してください</option>
+<option disabled>2023年度</option>
+<option value="./assets/2023/kiban_c/form.md">基盤研究（C）</option>
+<option disabled>例</option>
+<option value="./examples/egg/main.md">象の卵</option>
+</select>
+</label>
+<label>
+プロジェクト
+<select id="project" onchange="onchangeProject();">
+</select>
+</label>
+<button onclick="convert();">出力</button>
+<button onclick="print();">印刷</button>
+</div>
+<textarea id="editor" style="width: 30%; height: 90%"></textarea>
+<textarea id="output" readonly style="display: inline-block; width: 30%; height: 90%"></textarea>
+<iframe id="preview" src="" style="display: inline-block; overflow: scroll; width: 30%; height: 90%;"></iframe>
+<script>
+const VFM = { stringify, readMetadata };
+const Vivliostyle = { printHTML };
+async function StringReplaceP(text, re, callback) {
+	let map = {};
+	for (const m of text.matchAll(/{{\!\s*(.+?)\s*}}/g)) {
+		const replace = await callback(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9]);
+		map[m[0]] = replace;
+	}
+	const text2 = text.replace(/{{\!\s*(.+?)\s*}}/g, (str) => {
+		return map[str];
+	});
+	return text2;
+}
+async function saveIDB(name, storeName, key, value) {
+	console.log("[save_idb]", name, storeName, key);
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open(name);
+		req.onupgradeneeded = (event) => {
+			const db = event.target.result;
+			const os = db.createObjectStore(storeName);
+			os.add(value, key);
+		};
+		req.onsuccess = (event) => {
+			const db = event.target.result;
+			const tr = db.transaction([storeName], "readwrite");
+			const os = tr.objectStore(storeName);
+			const req = os.put(value, key);
+			req.onsuccess = (event) => {
+				resolve();
+			};
+			req.onerror = reject;
+		};
+		req.onerror = reject;
+	});
+}
+async function loadIDB(name, storeName, key) {
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open(name);
+		req.onupgradeneeded = (event) => {
+			const db = event.target.result;
+			const os = db.createObjectStore(storeName);
+		};
+		req.onsuccess = (event) => {
+			const db = event.target.result;
+			const os = db.transaction([storeName]).objectStore(storeName);
+			const req = os.get(key);
+			req.onsuccess = (event) => {
+				const value = event.target.result;
+				resolve(value);
+			};
+			req.onerror = reject;
+		};
+		req.onerror = reject;
+	});
+}
+
+const eEditor = document.getElementById("editor");
+const eOutput = document.getElementById("output");
+const ePreview = document.getElementById("preview");
+const ePreset = document.getElementById("preset");
+const eProject = document.getElementById("project");
+
+function loadText() {
+	const text = localStorage.getItem("cache");
+	eEditor.value = text;
+}
+function saveText() {
+	const text = eEditor.value;
+	localStorage.setItem("cache", text);
+}
+loadText();
+eEditor.addEventListener("change", saveText);
+
+async function onchangePreset() {
+	const url = ePreset.selectedOptions[0].value;
+	if (url) {
+		const text = url + "で初期化します";
+		if (window.confirm(text)) {
+			const res = await fetch(url);
+			const text = await res.text();
+			eEditor.value = text;
+			saveText();
+		}
+	}
+}
+
+let directoryHandles = [];
+function setupProject() {
+	eProject.innerHTML = "";
+	const option0 = new Option("選択してください", "");
+	eProject.appendChild(option0);
+	for (const [index, handle] of directoryHandles.entries()) {
+		const option = new Option(handle.name, index);
+		eProject.appendChild(option);
+	}
+}
+async function main() {
+	directoryHandles = await loadIDB("kaken.md", "cache", "handles") || [];
+	setupProject();
+}
+main();
+async function onchangeProject() {
+	const str = eProject.selectedOptions[0].value;
+	if (str) {
+		const index = parseInt(str);
+		const handle = directoryHandles[index];
+		const result = await handle.requestPermission({ mode: "read" });
+		const handleMain = await handle.getFileHandle("main.md");
+		const file = await handleMain.getFile();
+		const text = await file.text();
+		eEditor.value = text;
+		saveText();
+	}
+}
+
+window.addEventListener("dragover", function() {
+	event.preventDefault();
+});
+window.addEventListener("drop", async function() {
+	event.preventDefault();
+	const items = event.dataTransfer.items;
+	for (let item of items) {
+		if (item.kind !== "file") continue;
+		const handle = await item.getAsFileSystemHandle();
+		if (handle.kind === "directory") {
+			directoryHandles.push(handle);
+		} else {
+		}
+	}
+	await saveIDB("kaken.md", "cache", "handles", directoryHandles);
+	await setupProject();
+	// const item = items[0];
+	// if (item.kind === "file") {
+	// 	const file = item.getAsFile();
+	// 	const text = await file.text();
+	// 	eEditor.value = text;
+	// 	saveText();
+	// }
+});
+
+async function convertURL(path, urlBase) {
+	const str = eProject.selectedOptions[0].value;
+	if (str === "") {
+		const url = new URL(path, urlBase);
+		return url;
+	} else {
+		const index = parseInt(str);
+		let handle = directoryHandles[index];
+		const segments = path.split("/");
+		const name = segments.pop();
+		for (const segment of segments) {
+			handle = await handle.getDirectoryHandle(segment);
+		}
+		handle = await handle.getFileHandle(name);
+		const file = await handle.getFile();
+		const url = URL.createObjectURL(file);
+		return url;
+	}
+}
+async function convertMain(textSrc) {
+	let m;
+	const metadataSrc = VFM.readMetadata(textSrc, ["template", "base"]);
+	const template = metadataSrc.custom ? metadataSrc.custom.template : null;
+	const base = metadataSrc.custom ? metadataSrc.custom.base : null;
+	let htmlOutput;
+	if (template === null) {
+		htmlOutput = VFM.stringify(textSrc, { disableFormatHtml: true });
+	} else {
+		// convert src
+		const urlBase = new URL(base, location.href);
+		const textSrc2 = await StringReplaceP(textSrc, /{{\!\s*(.+?)\s*}}/g, async (str, key) => {
+			let m;
+			if (m = key.match(/^input\((.*)\)$/)) {
+				const path = m[1];
+				const url = await convertURL(path, urlBase);
+				const res = await fetch(url);
+				const text = await res.text();
+				return text;
+			}
+			return key;
+		});
+		const htmlSrc = VFM.stringify(textSrc2, { partial: true, disableFormatHtml: true });
+		// console.log(htmlSrc);
+		const eSrc = document.createElement("div");
+		eSrc.innerHTML = htmlSrc;
+		for (const e of eSrc.querySelectorAll("img")) {
+			const path = e.getAttribute("src");
+			const url = await convertURL(path, urlBase);
+			e.setAttribute("src", url);
+		}
+
+		// convert template
+		const urlTemplate = new URL(template, location.href);
+		const resTemplate = await fetch(urlTemplate);
+		const textTemplate = await resTemplate.text();
+		const htmlTemplate = VFM.stringify(textTemplate, { disableFormatHtml: true }, metadataSrc);
+		const htmlTemplate2 = htmlTemplate.replace(/{{\s*(.+?)\s*}}/g, (str, key) => {
+			if (m = key.match(/^url\((.*)\)$/)) {
+				const path = m[1];
+				const url = new URL(path, urlTemplate);
+				return url.href;
+			} else if (m = key.match(/^get\((.*)\)$/)) {
+				const key = m[1];
+				if (key === "") {
+					return eSrc.innerHTML;
+				} else {
+					const e = eSrc.querySelector(key);
+					return e ? e.innerHTML : "";
+				}
+			}
+			return key;
+		});
+		htmlOutput = htmlTemplate2;
+	}
+	return htmlOutput;
+}
+async function convert() {
+	const textSrc = eEditor.value;
+	const htmlOutput = await convertMain(textSrc);
+	eOutput.value = htmlOutput;
+	const url = "@vivliostyle/viewer/#renderAllPages=true&b=data:," + encodeURIComponent(htmlOutput);
+	ePreview.contentDocument.location.href = url;
+	// Vivliostyle.printHTML(htmlOutput, { title: "科研費Markdown" });
+}
+function print() {
+	ePreview.contentWindow.print();
+}
+window.addEventListener("keydown", async () => {
+	if ((event.ctrlKey || event.metaKey) && event.code === "KeyS") {
+		event.preventDefault();
+		await convert();
+	} else if ((event.ctrlKey || event.metaKey) && event.code === "KeyP") {
+		event.preventDefault();
+		print();
+	}
+});
+</script>
+</body>
+</html>
