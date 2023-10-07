@@ -179,9 +179,13 @@ async function convertURL(path, urlBase) {
 		return url;
 	} else {
 		const index = parseInt(str);
-		let handle = directoryHandles[index];
-		const segments = path.split("/");
+		const directoryHandle = directoryHandles[index];
+		// normalize
+		const pathname = new URL(path, "http://localhost/").pathname;
+		const segments = pathname.split("/");
+		segments.shift();
 		const name = segments.pop();
+		let handle = directoryHandle;
 		for (const segment of segments) {
 			handle = await handle.getDirectoryHandle(segment);
 		}
