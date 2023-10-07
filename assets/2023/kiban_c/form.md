@@ -14,11 +14,6 @@ title: 基盤研究（C）
 </section>
 </section>
 
-<section id="１研究目的、研究方法など/(本文)">
-
-
-</section>
-
 <section id="２応募者の研究遂行能力及び研究環境">
 
 
