@@ -106,7 +106,6 @@ function saveText() {
 	const text = eEditor.value;
 	localStorage.setItem("cache", text);
 }
-loadText();
 eEditor.addEventListener("change", saveText);
 
 async function initializePreset() {
@@ -271,6 +270,7 @@ async function convertMain(text) {
 	});
 	return text5;
 }
+
 async function convert() {
 	const textSrc = eEditor.value;
 	const htmlOutput = await convertMain(textSrc);
@@ -297,6 +297,7 @@ async function main() {
 	await initializePreset();
 	directoryHandles = await loadIDB("kaken.md", "cache", "handles") || [];
 	setupProject();
+	loadText();
 }
 main();
 </script>
