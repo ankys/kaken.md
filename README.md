@@ -20,8 +20,8 @@
 ### 記述方法
 
 - [VFM (Vivliostyle Flavored Markdown)](https://vivliostyle.github.io/vfm/)記法で記述する。
-- フロントマターの`template`にURLを設定するとテンプレートを指定できる。
-- フロントマターの`base`にURLを設定すると外部ファイルの基底URLを指定できる。
+- フロントマターの`template`にURLを設定するとテンプレートCSSを指定できる。
+- フロントマターの`baseurl`にURLを設定すると外部ファイルの基底URLを指定できる。
 - 本文の`{{! input(path) }}`や`{{ input(path) }}`の部分は`path`が示す外部ファイルの内容に置換される。
 
 ### 発展

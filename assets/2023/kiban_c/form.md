@@ -1,5 +1,5 @@
 ---
-template: ./assets/2023/kiban_c/template.md
+template: ./assets/2023/kiban_c/default.css
 title: 基盤研究（C）
 ---
 

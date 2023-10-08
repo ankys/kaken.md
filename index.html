@@ -36,11 +36,11 @@ const VFM = { stringify, readMetadata };
 const Vivliostyle = { printHTML };
 async function StringReplaceP(text, re, callback) {
 	let map = {};
-	for (const m of text.matchAll(/{{\!\s*(.+?)\s*}}/g)) {
+	for (const m of text.matchAll(re)) {
 		const replace = await callback(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9]);
 		map[m[0]] = replace;
 	}
-	const text2 = text.replace(/{{\!\s*(.+?)\s*}}/g, (str) => {
+	const text2 = text.replace(re, (str) => {
 		return map[str];
 	});
 	return text2;
@@ -172,16 +172,20 @@ window.addEventListener("drop", async function() {
 	// }
 });
 
-async function convertURL(path, urlBase) {
+async function convertURL(path, baseurl) {
 	const str = eProject.selectedOptions[0].value;
 	if (str === "") {
-		const url = new URL(path, urlBase);
+		const url = new URL(path, new URL(baseurl, location.href));
 		return url;
 	} else {
+		// normalize
+		const url1 = new URL(path, "http://localhost/")
+		if (url1.hostname !== "localhost") {
+			return path;
+		}
+		const pathname = url1.pathname;
 		const index = parseInt(str);
 		const directoryHandle = directoryHandles[index];
-		// normalize
-		const pathname = new URL(path, "http://localhost/").pathname;
 		const segments = pathname.split("/");
 		segments.shift();
 		const name = segments.pop();
@@ -195,68 +199,64 @@ async function convertURL(path, urlBase) {
 		return url;
 	}
 }
-async function convertMain(textSrc) {
+async function convertMain(text) {
 	let m;
-	const metadataSrc = VFM.readMetadata(textSrc, ["template", "base"]);
-	const template = metadataSrc.custom ? metadataSrc.custom.template : null;
-	const base = metadataSrc.custom ? metadataSrc.custom.base : null;
-	let htmlOutput;
-	if (template === null) {
-		htmlOutput = VFM.stringify(textSrc, { disableFormatHtml: true });
-	} else {
-		// convert src
-		const urlBase = new URL(base, location.href);
-		const textSrc2 = await StringReplaceP(textSrc, /{{\!\s*(.+?)\s*}}/g, async (str, key) => {
-			let m;
-			if (m = key.match(/^input\((.*)\)$/)) {
-				const path = m[1];
-				const url = await convertURL(path, urlBase);
-				const res = await fetch(url);
-				const text = await res.text();
-				return text;
-			}
-			return key;
-		});
-		const htmlSrc = VFM.stringify(textSrc2, { partial: true, disableFormatHtml: true });
-		// console.log(htmlSrc);
-		const eSrc = document.createElement("div");
-		eSrc.innerHTML = htmlSrc;
-		for (const e of eSrc.querySelectorAll("img")) {
-			const path = e.getAttribute("src");
-			const url = await convertURL(path, urlBase);
-			e.setAttribute("src", url);
-		}
-
-		// convert template
-		const urlTemplate = new URL(template, location.href);
-		const resTemplate = await fetch(urlTemplate);
-		const textTemplate = await resTemplate.text();
-		const htmlTemplate = VFM.stringify(textTemplate, { disableFormatHtml: true }, metadataSrc);
-		const htmlTemplate2 = htmlTemplate.replace(/{{\s*(.+?)\s*}}/g, (str, key) => {
-			if (m = key.match(/^url\((.*)\)$/)) {
-				const path = m[1];
-				const url = new URL(path, urlTemplate);
-				return url.href;
-			} else if (m = key.match(/^get\((.*)\)$/)) {
-				const key = m[1];
-				if (key === "") {
-					return eSrc.innerHTML;
-				} else {
-					const e = eSrc.querySelector(key);
-					return e ? e.innerHTML : "";
-				}
-			}
-			return key;
-		});
-		htmlOutput = htmlTemplate2;
+	let metadata = VFM.readMetadata(text, ["template", "baseurl"]);
+	const template = metadata.custom ? metadata.custom.template : null;
+	const baseurl = metadata.custom ? metadata.custom.baseurl : null;
+	if (template) {
+		const urlTemplate = new URL(template, location.href).href;
+		let link = metadata.link || [];
+		link.unshift([{ name: "rel", value: "stylesheet" }, { name: "href", value: urlTemplate }]);
+		metadata.link = link;
 	}
-	return htmlOutput;
+	if (baseurl) {
+		const urlBase = new URL(baseurl, location.href).href;
+		const base = [{ name: "href", value: urlBase }];
+		metadata.base = base;
+	}
+	const text2 = await StringReplaceP(text, /{{\!\s*(.+?)\s*}}/g, async (str, key) => {
+		let m;
+		if (m = key.match(/^input\((.*)\)$/)) {
+			const path = m[1];
+			const url = await convertURL(path, baseurl);
+			const res = await fetch(url);
+			const text = await res.text();
+			return text;
+		}
+		return key;
+	});
+	const text3 = VFM.stringify(text2, { disableFormatHtml: true }, metadata);
+	const text4 = await StringReplaceP(text3, /{{\s*(.+?)\s*}}/g, async (str, key) => {
+		let m;
+		if (m = key.match(/^input\((.*)\)$/)) {
+			const path = m[1];
+			const url = await convertURL(path, baseurl);
+			const res = await fetch(url);
+			const text = await res.text();
+			return text;
+		}
+		return key;
+	});
+	// const eDummy = document.createElement("div");
+	// eDummy.innerHTML = text4;
+	// for (const e of eDummy.querySelectorAll("img")) {
+	// 	const path = e.getAttribute("src");
+	// 	const url = await convertURL(path, baseurl);
+	// 	e.setAttribute("src", url);
+	// }
+	// const text5 = eDummy.innerHTML;
+	const text5 = await StringReplaceP(text4, /src="(.*?)"/g, async (str, path) => {
+		const url = await convertURL(path, baseurl);
+		return "src=\"" + url + "\"";
+	});
+	return text5;
 }
 async function convert() {
 	const textSrc = eEditor.value;
 	const htmlOutput = await convertMain(textSrc);
 	eOutput.value = htmlOutput;
-	const url = "@vivliostyle/viewer/#renderAllPages=true&b=data:," + encodeURIComponent(htmlOutput);
+	const url = "@vivliostyle/viewer/#renderAllPages=true&x=data:," + encodeURIComponent(htmlOutput);
 	ePreview.contentDocument.location.href = url;
 	// Vivliostyle.printHTML(htmlOutput, { title: "科研費Markdown" });
 }

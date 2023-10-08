@@ -1,6 +1,6 @@
 ---
-template: ./assets/2023/kiban_c/template.md
-base: ./examples/egg/main.md
+template: ./assets/2023/kiban_c/default.css
+baseurl: ./examples/egg/main.md
 title: 象の卵
 ---
 
