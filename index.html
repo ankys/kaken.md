@@ -13,10 +13,6 @@
 プリセット
 <select id="preset" onchange="onchangePreset();">
 <option value="">選択してください</option>
-<option disabled>2023年度</option>
-<option value="./assets/2023/kiban_c/form.md">基盤研究（C）</option>
-<option disabled>例</option>
-<option value="./examples/egg/main.md">象の卵</option>
 </select>
 </label>
 <label>
@@ -44,6 +40,11 @@ async function StringReplaceP(text, re, callback) {
 		return map[str];
 	});
 	return text2;
+}
+async function fetchText(url) {
+	const res = await fetch(url);
+	const text = await res.text();
+	return text;
 }
 async function saveIDB(name, storeName, key, value) {
 	console.log("[save_idb]", name, storeName, key);
@@ -88,6 +89,8 @@ async function loadIDB(name, storeName, key) {
 	});
 }
 
+const urlPreset = "preset.txt";
+
 const eEditor = document.getElementById("editor");
 const eOutput = document.getElementById("output");
 const ePreview = document.getElementById("preview");
@@ -105,6 +108,29 @@ function saveText() {
 loadText();
 eEditor.addEventListener("change", saveText);
 
+async function initializePreset() {
+	const text = await fetchText(urlPreset);
+	ePreset.innerHTML = "";
+	const option0 = new Option("選択してください", "");
+	ePreset.appendChild(option0);
+	for (let m of text.matchAll(/(.*?)(\x0D\x0A|\x0D|\x0A|$)/g)) {
+		const line = m[1];
+		if (line === "") continue;
+		const [disabled, line2] = (m = line.match(/^#(.*)$/)) ? [true, m[1]] : [false, line];
+		let option;
+		if (m = line2.match(/^(.*?)\t(.*)$/)) {
+			const text = m[1];
+			const value = m[2];
+			option = new Option(text, value);
+		} else {
+			option = new Option(line2);
+		}
+		if (disabled) {
+			option.disabled = true;
+		}
+		ePreset.appendChild(option);
+	}
+}
 async function onchangePreset() {
 	const url = ePreset.selectedOptions[0].value;
 	if (url) {
@@ -128,11 +154,6 @@ function setupProject() {
 		eProject.appendChild(option);
 	}
 }
-async function main() {
-	directoryHandles = await loadIDB("kaken.md", "cache", "handles") || [];
-	setupProject();
-}
-main();
 async function onchangeProject() {
 	const str = eProject.selectedOptions[0].value;
 	if (str) {
@@ -272,6 +293,13 @@ window.addEventListener("keydown", async () => {
 		print();
 	}
 });
+
+async function main() {
+	await initializePreset();
+	directoryHandles = await loadIDB("kaken.md", "cache", "handles") || [];
+	setupProject();
+}
+main();
 </script>
 </body>
 </html>
