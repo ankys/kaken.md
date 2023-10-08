@@ -90,6 +90,7 @@ async function loadIDB(name, storeName, key) {
 }
 
 const urlPreset = "preset.txt";
+const nameMainFile = "main.md";
 
 const eEditor = document.getElementById("editor");
 const eOutput = document.getElementById("output");
@@ -136,8 +137,7 @@ async function onchangePreset() {
 	if (url) {
 		const text = url + "で初期化します";
 		if (window.confirm(text)) {
-			const res = await fetch(url);
-			const text = await res.text();
+			const text = await fetchText(url);
 			eEditor.value = text;
 			saveText();
 		}
@@ -160,7 +160,7 @@ async function onchangeProject() {
 		const index = parseInt(str);
 		const handle = directoryHandles[index];
 		const result = await handle.requestPermission({ mode: "read" });
-		const handleMain = await handle.getFileHandle("main.md");
+		const handleMain = await handle.getFileHandle(nameMainFile);
 		const file = await handleMain.getFile();
 		const text = await file.text();
 		eEditor.value = text;
@@ -241,8 +241,7 @@ async function convertMain(text) {
 		if (m = key.match(/^input\((.*)\)$/)) {
 			const path = m[1];
 			const url = await convertURL(path, baseurl);
-			const res = await fetch(url);
-			const text = await res.text();
+			const text = await fetchText(url);
 			return text;
 		}
 		return key;
@@ -253,8 +252,7 @@ async function convertMain(text) {
 		if (m = key.match(/^input\((.*)\)$/)) {
 			const path = m[1];
 			const url = await convertURL(path, baseurl);
-			const res = await fetch(url);
-			const text = await res.text();
+			const text = await fetchText(url);
 			return text;
 		}
 		return key;
@@ -279,6 +277,7 @@ async function convert() {
 	eOutput.value = htmlOutput;
 	const url = "@vivliostyle/viewer/#renderAllPages=true&x=data:," + encodeURIComponent(htmlOutput);
 	ePreview.contentDocument.location.href = url;
+	ePreview.focus();
 	// Vivliostyle.printHTML(htmlOutput, { title: "科研費Markdown" });
 }
 function print() {
